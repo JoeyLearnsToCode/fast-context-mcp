@@ -10,6 +10,18 @@ import { join } from "node:path";
 import { homedir, platform } from "node:os";
 import initSqlJs from "sql.js";
 
+const TOML_API_KEY_FIELDS = [
+  "api_key",
+  "apiKey",
+  "devin_api_key",
+  "devinApiKey",
+  "windsurf_api_key",
+  "windsurfApiKey",
+  "access_token",
+  "accessToken",
+  "token",
+];
+
 /**
  * Get platform-specific candidate paths to Windsurf/Devin's state.vscdb.
  * The renamed app uses Deviv on disk; Windsurf is kept as a compatibility fallback.
@@ -47,6 +59,86 @@ export function getDbPathCandidates(opts = {}) {
  */
 export function getDbPath() {
   return getDbPathCandidates()[0];
+}
+
+/**
+ * Get platform-specific Devin CLI credential candidates.
+ * WSL runs as Linux, so it uses the Linux Devin CLI login path.
+ * @param {{ platformName?: string, homeDir?: string }} [opts]
+ * @returns {string[]}
+ */
+export function getCliCredentialPathCandidates(opts = {}) {
+  const plat = opts.platformName || platform();
+  const home = opts.homeDir || homedir();
+
+  if (plat !== "linux") return [];
+  return [join(home, ".local", "share", "devin", "credentials.toml")];
+}
+
+/**
+ * Get credential sources in lookup order.
+ * @param {{ platformName?: string, homeDir?: string, env?: NodeJS.ProcessEnv }} [opts]
+ * @returns {{ type: "toml" | "sqlite", path: string }[]}
+ */
+export function getCredentialSources(opts = {}) {
+  const tomlSources = getCliCredentialPathCandidates(opts).map((path) => ({ type: "toml", path }));
+  const sqliteSources = getDbPathCandidates(opts).map((path) => ({ type: "sqlite", path }));
+  return [...tomlSources, ...sqliteSources];
+}
+
+/**
+ * Extract an API key from Devin CLI credentials.toml content.
+ * @param {string} text
+ * @returns {string}
+ */
+export function extractApiKeyFromToml(text) {
+  for (const field of TOML_API_KEY_FIELDS) {
+    const match = text.match(new RegExp(`^\\s*${field}\\s*=\\s*(?:"([^"]+)"|'([^']+)'|([^\\s#]+))`, "m"));
+    const value = (match?.[1] || match?.[2] || match?.[3] || "").trim();
+    if (value) return value;
+  }
+
+  const fallback = text.match(/\bsk-[A-Za-z0-9_-]+\b/);
+  return fallback ? fallback[0] : "";
+}
+
+/**
+ * Extract API Key from a Devin CLI credentials.toml file.
+ * @param {string} credentialsPath
+ * @returns {{ api_key?: string, db_path: string, source_type: string, error?: string, hint?: string }}
+ */
+function extractKeyFromToml(credentialsPath) {
+  if (!existsSync(credentialsPath)) {
+    return {
+      error: `Devin CLI credentials not found: ${credentialsPath}`,
+      hint: "Run devin login inside WSL/Linux, then retry.",
+      db_path: credentialsPath,
+      source_type: "devin_cli_credentials",
+    };
+  }
+
+  let text;
+  try {
+    text = readFileSync(credentialsPath, "utf8");
+  } catch (e) {
+    return {
+      error: `Failed to read Devin CLI credentials: ${e.message}`,
+      db_path: credentialsPath,
+      source_type: "devin_cli_credentials",
+    };
+  }
+
+  const apiKey = extractApiKeyFromToml(text);
+  if (!apiKey) {
+    return {
+      error: "Devin CLI credentials did not contain an API key",
+      hint: "Run devin login inside WSL/Linux, then retry.",
+      db_path: credentialsPath,
+      source_type: "devin_cli_credentials",
+    };
+  }
+
+  return { api_key: apiKey, db_path: credentialsPath, source_type: "devin_cli_credentials" };
 }
 
 /**
@@ -112,15 +204,19 @@ async function extractKeyFromDb(dbPath) {
  * @returns {Promise<{ api_key?: string, db_path: string, error?: string, hint?: string, tried_paths?: string[] }>}
  */
 export async function extractKey(dbPath) {
-  const dbPaths = dbPath ? [dbPath] : getDbPathCandidates();
+  const sources = dbPath
+    ? [{ type: dbPath.endsWith(".toml") ? "toml" : "sqlite", path: dbPath }]
+    : getCredentialSources();
   const triedPaths = [];
   let firstExistingError = null;
 
-  for (const candidate of dbPaths) {
-    triedPaths.push(candidate);
-    if (!existsSync(candidate)) continue;
+  for (const source of sources) {
+    triedPaths.push(source.path);
+    if (!existsSync(source.path)) continue;
 
-    const result = await extractKeyFromDb(candidate);
+    const result = source.type === "toml"
+      ? extractKeyFromToml(source.path)
+      : await extractKeyFromDb(source.path);
     if (result.api_key) return result;
     if (!firstExistingError) firstExistingError = result;
   }
@@ -130,9 +226,9 @@ export async function extractKey(dbPath) {
   }
 
   return {
-    error: "Windsurf/Devin database not found",
-    hint: "Ensure Windsurf or Devin is installed and logged in.",
-    db_path: dbPaths[0],
+    error: "Windsurf/Devin credential source not found",
+    hint: "Ensure Devin or Windsurf is installed and logged in.",
+    db_path: sources[0]?.path || "",
     tried_paths: triedPaths,
   };
 }

@@ -180,7 +180,10 @@ server.tool(
     const result = await extractKeyInfo();
 
     if (result.error) {
-      const text = `Error: ${result.error}\n${result.hint || ""}\nDB path: ${result.db_path || "N/A"}`;
+      const tried = Array.isArray(result.tried_paths) && result.tried_paths.length
+        ? `\nTried paths:\n${result.tried_paths.map((path) => `  - ${path}`).join("\n")}`
+        : "";
+      const text = `Error: ${result.error}\n${result.hint || ""}\nSource path: ${result.db_path || "N/A"}${tried}`;
       return { content: [{ type: "text", text }] };
     }
 

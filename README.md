@@ -75,6 +75,8 @@ Key is stored in Devin's local SQLite database. The legacy Windsurf path is stil
 | Windows | `%APPDATA%/Deviv/User/globalStorage/state.vscdb` |
 | Linux | `~/.config/Deviv/User/globalStorage/state.vscdb` |
 
+On WSL/Linux, the server first checks Devin CLI credentials at `~/.local/share/devin/credentials.toml`. If a Windows-extracted key returns 403 inside WSL, run `devin login` inside WSL and retry.
+
 ### 2. Configure MCP Client
 
 #### Claude Code
@@ -199,6 +201,7 @@ Error: Request failed: HTTP 403
 
 [hint] 403 Forbidden: Authentication failed. The API key may be expired or revoked.
 Try re-extracting with extract_windsurf_key, or set a fresh WINDSURF_API_KEY env var.
+If you are running inside WSL, run `devin login` inside WSL so `~/.local/share/devin/credentials.toml` exists.
 ```
 
 ```
