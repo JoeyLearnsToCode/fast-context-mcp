@@ -9,6 +9,7 @@
  *   FC_MAX_TURNS         — Search rounds per query (default: 3)
  *   FC_MAX_COMMANDS      — Max parallel commands per round (default: 8)
  *   FC_TIMEOUT_MS        — Connect-Timeout-Ms for streaming requests (default: 30000)
+ *   FC_HIDE_EXTRACT_WINDSURF_KEY_TOOL — Hide extract_windsurf_key from MCP tools (default: false)
  *
  * Start:
  *   node src/server.mjs
@@ -39,10 +40,25 @@ function readIntEnv(name, defaultValue, opts = {}) {
   return value;
 }
 
+/**
+ * Parse a boolean env var.
+ * @param {string} name
+ * @param {boolean} defaultValue
+ * @returns {boolean}
+ */
+function readBoolEnv(name, defaultValue) {
+  const raw = process.env[name];
+  if (raw === undefined) return defaultValue;
+  const normalized = raw.trim().toLowerCase();
+  if (!normalized) return defaultValue;
+  return ["1", "true", "yes", "on"].includes(normalized);
+}
+
 // Read config from environment
 const MAX_TURNS = readIntEnv("FC_MAX_TURNS", 3, { min: 1, max: 5 });
 const MAX_COMMANDS = readIntEnv("FC_MAX_COMMANDS", 8, { min: 1, max: 20 });
 const TIMEOUT_MS = readIntEnv("FC_TIMEOUT_MS", 30000, { min: 1000, max: 300000 });
+const HIDE_EXTRACT_WINDSURF_KEY_TOOL = readBoolEnv("FC_HIDE_EXTRACT_WINDSURF_KEY_TOOL", false);
 
 const server = new McpServer({
   name: "windsurf-fast-context",
@@ -170,35 +186,37 @@ server.tool(
 
 // ─── Tool: extract_windsurf_key ────────────────────────────
 
-server.tool(
-  "extract_windsurf_key",
-  "Extract Windsurf API Key from local installation. " +
-  "Auto-detects OS (macOS/Windows/Linux) and reads the API key from " +
-  "Windsurf's local database. Set the result as WINDSURF_API_KEY env var.",
-  {},
-  async () => {
-    const result = await extractKeyInfo();
+if (!HIDE_EXTRACT_WINDSURF_KEY_TOOL) {
+  server.tool(
+    "extract_windsurf_key",
+    "Extract Windsurf API Key from local installation. " +
+    "Auto-detects OS (macOS/Windows/Linux) and reads the API key from " +
+    "Windsurf's local database. Set the result as WINDSURF_API_KEY env var.",
+    {},
+    async () => {
+      const result = await extractKeyInfo();
 
-    if (result.error) {
-      const tried = Array.isArray(result.tried_paths) && result.tried_paths.length
-        ? `\nTried paths:\n${result.tried_paths.map((path) => `  - ${path}`).join("\n")}`
-        : "";
-      const text = `Error: ${result.error}\n${result.hint || ""}\nSource path: ${result.db_path || "N/A"}${tried}`;
+      if (result.error) {
+        const tried = Array.isArray(result.tried_paths) && result.tried_paths.length
+          ? `\nTried paths:\n${result.tried_paths.map((path) => `  - ${path}`).join("\n")}`
+          : "";
+        const text = `Error: ${result.error}\n${result.hint || ""}\nSource path: ${result.db_path || "N/A"}${tried}`;
+        return { content: [{ type: "text", text }] };
+      }
+
+      const key = result.api_key;
+      const text =
+        `Windsurf API Key extracted successfully\n\n` +
+        `  Key: ${key.slice(0, 30)}...${key.slice(-10)}\n` +
+        `  Length: ${key.length}\n` +
+        `  Source: ${result.db_path}\n\n` +
+        `Usage:\n` +
+        `  export WINDSURF_API_KEY="${key}"`;
+
       return { content: [{ type: "text", text }] };
     }
-
-    const key = result.api_key;
-    const text =
-      `Windsurf API Key extracted successfully\n\n` +
-      `  Key: ${key.slice(0, 30)}...${key.slice(-10)}\n` +
-      `  Length: ${key.length}\n` +
-      `  Source: ${result.db_path}\n\n` +
-      `Usage:\n` +
-      `  export WINDSURF_API_KEY="${key}"`;
-
-    return { content: [{ type: "text", text }] };
-  }
-);
+  );
+}
 
 // ─── Start ─────────────────────────────────────────────────
 

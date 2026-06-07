@@ -149,6 +149,7 @@ For beta/next release:
 | `FC_MAX_TURNS` | `3` | Search rounds per query (more = deeper but slower) |
 | `FC_MAX_COMMANDS` | `8` | Max parallel commands per round |
 | `FC_TIMEOUT_MS` | `30000` | Connect-Timeout-Ms for streaming requests |
+| `FC_HIDE_EXTRACT_WINDSURF_KEY_TOOL` | `false` | Hide `extract_windsurf_key` from MCP tools when set to `1`, `true`, `yes`, or `on` |
 | `FC_RESULT_MAX_LINES` | `50` | Max lines per command output (truncation) |
 | `FC_LINE_MAX_CHARS` | `250` | Max characters per output line (truncation) |
 | `WS_MODEL` | `MODEL_SWE_1_6_FAST` | Windsurf model name |
@@ -214,6 +215,8 @@ Error: Request failed: HTTP 413
 ### `extract_windsurf_key`
 
 Extract Windsurf API Key from local installation. No parameters.
+
+Set `FC_HIDE_EXTRACT_WINDSURF_KEY_TOOL=1` at MCP server startup to hide this tool from `tools/list`. This does not disable internal API-key auto-discovery for `fast_context_search`.
 
 ## Project Structure
 
