@@ -67,13 +67,13 @@ npm install
 
 The server auto-extracts the API key from your local Windsurf installation. You can also use the `extract_windsurf_key` MCP tool after setup, or set `WINDSURF_API_KEY` manually.
 
-Key is stored in Windsurf's local SQLite database:
+Key is stored in Devin's local SQLite database. The legacy Windsurf path is still checked as a fallback:
 
 | Platform | Path |
 |----------|------|
-| macOS | `~/Library/Application Support/Windsurf/User/globalStorage/state.vscdb` |
-| Windows | `%APPDATA%/Windsurf/User/globalStorage/state.vscdb` |
-| Linux | `~/.config/Windsurf/User/globalStorage/state.vscdb` |
+| macOS | `~/Library/Application Support/Deviv/User/globalStorage/state.vscdb` |
+| Windows | `%APPDATA%/Deviv/User/globalStorage/state.vscdb` |
+| Linux | `~/.config/Deviv/User/globalStorage/state.vscdb` |
 
 ### 2. Configure MCP Client
 
