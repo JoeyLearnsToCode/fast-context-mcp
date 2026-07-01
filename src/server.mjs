@@ -17,6 +17,8 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 import { searchWithContent, extractKeyInfo } from "./core.mjs";
@@ -220,12 +222,20 @@ if (!HIDE_EXTRACT_WINDSURF_KEY_TOOL) {
 
 // ─── Start ─────────────────────────────────────────────────
 
-async function main() {
+let _mcpConnected = false;
+
+export async function startMcpServer() {
+  if (_mcpConnected) return;
+  _mcpConnected = true;
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+const isDirectRun = typeof process.argv[1] === "string"
+  && resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1]);
+if (isDirectRun) {
+  startMcpServer().catch((err) => {
+    console.error("Fatal error:", err);
+    process.exit(1);
+  });
+}

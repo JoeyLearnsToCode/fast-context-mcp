@@ -3,9 +3,9 @@
   "version": "1.2.2",
   "description": "AI-driven semantic code search via reverse-engineered Windsurf protocol (Node.js)",
   "type": "module",
-  "main": "src/server.mjs",
+  "main": "src/cli.mjs",
   "bin": {
-    "fast-context-mcp": "src/server.mjs"
+    "fast-context-mcp": "src/cli.mjs"
   },
   "files": [
     "src/",
@@ -13,18 +13,19 @@
     "LICENSE"
   ],
   "scripts": {
-    "start": "node src/server.mjs"
+    "start": "node src/server.mjs",
+    "build": "bun build --compile src/cli.mjs --outfile=fast-context-mcp"
   },
   "engines": {
     "node": ">=18"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SammySnake-d/fast-context-mcp.git"
+    "url": "git+https://github.com/JoeyLearnsToCode/fast-context-mcp.git"
   },
-  "homepage": "https://github.com/SammySnake-d/fast-context-mcp#readme",
+  "homepage": "https://github.com/JoeyLearnsToCode/fast-context-mcp#readme",
   "bugs": {
-    "url": "https://github.com/SammySnake-d/fast-context-mcp/issues"
+    "url": "https://github.com/JoeyLearnsToCode/fast-context-mcp/issues"
   },
   "keywords": [
     "mcp",
