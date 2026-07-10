@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import { searchWithContent, search } from "./core.mjs";
+import { deepwikiWithContent } from "./wiki.mjs";
 import { startMcpServer } from "./server.mjs";
 
 const SEARCH_OPTIONS = {
@@ -16,8 +17,20 @@ const SEARCH_OPTIONS = {
   help: { type: "boolean", default: false },
 };
 
+const WIKI_OPTIONS = {
+  path: { type: "string", default: "" },
+  line: { type: "string", default: undefined },
+  "symbol-type": { type: "string", default: "" },
+  "symbol-uri": { type: "string", default: "" },
+  language: { type: "string", default: "" },
+  summary: { type: "boolean", default: false },
+  debug: { type: "boolean", default: false },
+  "api-key": { type: "string", default: "" },
+  help: { type: "boolean", default: false },
+};
+
 function showHelp() {
-  process.stdout.write(`fast-context-mcp - AI-driven semantic code search
+  process.stdout.write(`fast-context-mcp - AI-driven semantic code search + DeepWiki
 
 USAGE:
   fast-context-mcp                        Start MCP server (stdio)
@@ -32,6 +45,15 @@ USAGE:
     [--max-commands <n>]                  Max parallel commands per round (default: 8)
     [--api-key <key>]                     Windsurf API key (override)
     [--json]                              Output raw JSON
+  fast-context-mcp wiki <symbol>          Get DeepWiki article for a symbol
+    [--path <path>]                       File or directory for context (default: cwd). Ripgrep searches parent dir for defs
+    [--line <n>]                          Line number in source file (1-indexed). Used with --path to pin context
+    [--symbol-type <type>]                Symbol kind (class, function, interface, ...)
+    [--symbol-uri <uri>]                  Symbol file URI
+    [--language <lang>]                   Output language (default: "zh-cn")
+    [--summary]                           Request summary instead of full article
+    [--debug]                             Print context without making API request
+    [--api-key <key>]                     Windsurf API key (override)
   fast-context-mcp help                   Show this help
 `);
 }
@@ -102,6 +124,43 @@ async function main() {
       const result = await searchWithContent(opts);
       process.stdout.write(result + "\n");
     }
+    done();
+    return;
+  }
+
+  if (cmd === "wiki") {
+    const { values, positionals } = parseArgs({
+      args: process.argv.slice(3),
+      options: WIKI_OPTIONS,
+      allowPositionals: true,
+    });
+
+    if (values.help) {
+      showHelp();
+      done();
+      return;
+    }
+
+    const symbol = positionals[0];
+    if (!symbol) {
+      process.stderr.write("Error: wiki requires a symbol name\n");
+      done(1);
+      return;
+    }
+
+    const line = values.line !== undefined ? parseInt(values.line, 10) : undefined;
+    const result = await deepwikiWithContent({
+      symbol,
+      path: values.path || undefined,
+      line: Number.isFinite(line) ? line : undefined,
+      symbolType: values["symbol-type"] || undefined,
+      symbolUri: values["symbol-uri"] || undefined,
+      language: values.language || undefined,
+      summary: values.summary,
+      debug: values.debug,
+      apiKey: values["api-key"] || undefined,
+    });
+    process.stdout.write(result + "\n");
     done();
     return;
   }

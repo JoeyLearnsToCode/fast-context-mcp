@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 import { searchWithContent, extractKeyInfo } from "./core.mjs";
+import { deepwikiWithContent } from "./wiki.mjs";
 
 /**
  * Parse an integer env var with optional clamping.
@@ -219,6 +220,40 @@ if (!HIDE_EXTRACT_WINDSURF_KEY_TOOL) {
     }
   );
 }
+
+// ─── Tool: get_deep_wiki ────────────────────────────────────
+
+server.tool(
+  "get_deep_wiki",
+  "Get a DeepWiki article for a symbol in the codebase. " +
+  "Returns AI-generated documentation explaining the symbol's purpose, usage, and relationships.\n" +
+  "Basic usage: just provide a symbol name. For better results, also provide --path and optionally --line.",
+  {
+    symbol: z.string().describe("Symbol name to look up (e.g. 'IInstantiationService', 'LoggerFactory')"),
+    path: z.string().optional().describe("Source file path for context extraction. If provided without --line, auto-searches for the symbol in the file."),
+    line: z.number().int().min(1).optional().describe("Line number in the source file (1-indexed). Only used when --path is provided. Extracts ±10 lines around this line as context."),
+    symbol_type: z.string().optional().describe("Symbol kind. Options: class, function, interface, method, enum, struct, variable, etc."),
+    symbol_uri: z.string().optional().describe("Full file URI for the symbol (e.g. 'file:///path/to/file.ts')"),
+    language: z.string().optional().describe("Output language (e.g. 'zh-cn', 'en')"),
+    summary: z.boolean().optional().default(false).describe("If true, request a summary instead of a full article"),
+  },
+  async ({ symbol, path, line, symbol_type, symbol_uri, language, summary }) => {
+    try {
+      const result = await deepwikiWithContent({
+        symbol,
+        path: path || undefined,
+        line: line || undefined,
+        symbolType: symbol_type || undefined,
+        symbolUri: symbol_uri || undefined,
+        language: language || undefined,
+        summary: summary || false,
+      });
+      return { content: [{ type: "text", text: result }] };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Error: ${e.message}` }] };
+    }
+  }
+);
 
 // ─── Start ─────────────────────────────────────────────────
 

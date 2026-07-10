@@ -1,7 +1,7 @@
 /**
  * Tool executor for Windsurf's restricted commands.
  *
- * Uses @vscode/ripgrep for built-in rg binary — no system install needed.
+ * Uses system rg (ripgrep) from PATH.
  * Matches Python ToolExecutor behavior exactly.
  */
 
@@ -9,7 +9,6 @@ import { execFileSync, execFile as execFileCb } from "node:child_process";
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join, resolve, relative, sep, basename } from "node:path";
 import { promisify } from "node:util";
-import { rgPath } from "@vscode/ripgrep";
 import treeNodeCli from "tree-node-cli";
 
 const execFileAsync = promisify(execFileCb);
@@ -36,11 +35,26 @@ function readIntEnv(name, defaultValue, opts = {}) {
 const RESULT_MAX_LINES = readIntEnv("FC_RESULT_MAX_LINES", 50, { min: 1, max: 500 });
 const LINE_MAX_CHARS = readIntEnv("FC_LINE_MAX_CHARS", 250, { min: 20, max: 10000 });
 
+export function checkRg() {
+  try {
+    execFileSync("rg", ["--version"], { encoding: "utf-8", timeout: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export class ToolExecutor {
   /**
    * @param {string} projectRoot
    */
   constructor(projectRoot) {
+    if (!checkRg()) {
+      throw new Error(
+        "rg (ripgrep) not found in PATH. Install: winget install BurntSushi.ripgrep.MSVC (Windows), " +
+        "brew install ripgrep (macOS), or apt install ripgrep (Linux)"
+      );
+    }
     this.root = resolve(projectRoot);
     /** @type {string[]} */
     this.collectedRgPatterns = [];
@@ -118,7 +132,7 @@ export class ToolExecutor {
   }
 
   /**
-   * Search for pattern using @vscode/ripgrep (async version).
+   * Search for pattern using system rg (async version).
    * @param {string} pattern
    * @param {string} path
    * @param {string[]|null} [include]
@@ -151,7 +165,7 @@ export class ToolExecutor {
     }
 
     try {
-      const { stdout } = await execFileAsync(rgPath, args, {
+      const { stdout } = await execFileAsync("rg", args, {
         timeout: 30000,
         maxBuffer: 10 * 1024 * 1024,
         env: { ...process.env, RIPGREP_CONFIG_PATH: "" },
@@ -170,7 +184,7 @@ export class ToolExecutor {
   }
 
   /**
-   * Search for pattern using @vscode/ripgrep.
+   * Search for pattern using system rg.
    * @param {string} pattern
    * @param {string} path
    * @param {string[]|null} [include]
@@ -203,7 +217,7 @@ export class ToolExecutor {
     }
 
     try {
-      const stdout = execFileSync(rgPath, args, {
+      const stdout = execFileSync("rg", args, {
         timeout: 30000,
         maxBuffer: 10 * 1024 * 1024,
         env: { ...process.env, RIPGREP_CONFIG_PATH: "" },

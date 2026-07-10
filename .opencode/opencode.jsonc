@@ -1,0 +1,6 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "reference": {
+    "windsurf-deepwiki": { "path": "D:/open-source/windsurf-deepwiki2api" }
+  }
+}
